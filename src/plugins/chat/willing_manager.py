@@ -32,9 +32,6 @@ class WillingManager:
     def set_willing(self, chat_id: str, willing: float):
         """设置指定聊天流的回复意愿"""
         self.chat_reply_willing[chat_id] = willing
-    def set_willing(self, chat_id: str, willing: float):
-        """设置指定聊天流的回复意愿"""
-        self.chat_reply_willing[chat_id] = willing
         
     async def change_reply_willing_received(self, 
                                           chat_stream:ChatStream,
