@@ -28,7 +28,7 @@ select = [
     "B", # flake8-bugbear
 ]
 
-ignore = ["E711"]
+ignore = ["E711","E731"]
 
 [tool.ruff.format]
 docstring-code-format = true
