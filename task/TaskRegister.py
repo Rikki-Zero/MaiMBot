@@ -1,4 +1,5 @@
 from typing import Union, TYPE_CHECKING
+from asyncio import Queue
 
 from .TaskTypes import TaskStage,TaskHookType
 
@@ -11,11 +12,21 @@ class TaskRegister:
         self.hook_chains: dict[str, list[TaskItem]] = {}
         self.sorted_flags: dict[Union[TaskStage, str], bool] = {}
 
+        self.chain_tx: dict[Union[TaskStage, str], Queue] = {}
+        self.chain_rx: dict[Union[TaskStage, str], Queue] = {}
+        self.chain_cache: dict[Union[TaskStage, str], Queue] = {}
+
     def get_stage_chains(self, stage: TaskStage, default: list) -> list["TaskItem"] | list:
         return self.stage_chains.get(stage, default)
 
     def get_hook_chains(self, name: str, default: list) -> list["TaskItem"] | list:
         return self.hook_chains.get(name, default)
+    
+    def init_msg_queue(self, stage: Union[TaskStage, str]):
+        """初始化消息队列"""
+        self.chain_tx[stage] = Queue()
+        self.chain_rx[stage] = Queue()
+        self.chain_cache[stage] = Queue()
 
     def register_stage_task(self, stage: TaskStage, task_item: "TaskItem"):
         if stage not in self.stage_chains:
@@ -24,6 +35,8 @@ class TaskRegister:
 
         # 将task_item添加到 f"{stage}" 链中
         self.stage_chains[stage].append(task_item)
+        self.init_msg_queue(stage)
+        
 
         # 设置sorted_flags，表示 f"{stage}" 链对应项未排序
         self.sorted_flags[stage] = False
@@ -35,6 +48,7 @@ class TaskRegister:
             
         # 将task_item添加到 f"{hook_key}" 链中
         self.hook_chains[hook_key].append(task_item)
+        self.init_msg_queue(hook_key)
 
         # 设置sorted_flags，表示 f"{hook_key}" 链对应项未排序
         self.sorted_flags[hook_key] = False

@@ -1,7 +1,7 @@
 import asyncio
 from threading import Thread
 from multiprocessing import Process
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 from .TaskManager import task_manager
 from .TaskTypes import TaskType, TaskHookType
@@ -34,7 +34,9 @@ class TaskItem:
     task_type: TaskType = None  # 任务类型
     timeout: Optional[float] = None  # 任务超时时间
     priority: int = 0  # 任务优先级
-    _task: Optional[Union[asyncio.Task, Thread, Process]] = None  # 任务实例
+
+    _task: Optional[asyncio.Task] = None  # 任务实例
+
     _hooks: dict[TaskHookType, list["TaskItem"]] = {}  # 任务钩子
 
     def __init__(self, fn: Callable, task_type: TaskType, priority: int = 0, timeout: Optional[float] = None):
@@ -56,26 +58,6 @@ class TaskItem:
             # 更新实例的具体hook chain名称
             # 例如：on_startup.AFTER_START = "on_startup_after_start"
             setattr(self, hook_type.name, f"{fn_name}_{hook_type.value}")
-
-    def to_dict(self) -> dict:
-        """将任务项转换为字典"""
-        return {
-            "name": self.name,
-            "task_type": self.task_type.value,
-            "priority": self.priority,
-            "timeout": self.timeout,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "TaskItem":
-        """从字典创建任务项"""
-        return cls(
-            fn=None,  # 需要外部设置
-            name=data["name"],
-            task_type=TaskType(data["task_type"]),
-            priority=data["priority"],
-            timeout=data["timeout"],
-        )
     
     def run_hook(self, hook_type: TaskHookType, *args, **kwargs) -> None:
         """执行钩子"""
@@ -85,6 +67,8 @@ class TaskItem:
     async def start(self, *args, **kwargs) -> None:
         """启动任务"""
         # 执行BEFORE_START钩子
+        kwargs['task'] = self  # 将当前任务实例作为task参数传入
+
         self.run_hook(self.BEFORE_START)
         
         # 启动主任务
@@ -93,19 +77,12 @@ class TaskItem:
             self._task = asyncio.create_task(self.fn(*args, **kwargs))
             await self._task
         elif self.task_type == TaskType.THREAD:
-            self._task = Thread(target=self.fn, args=args, kwargs=kwargs)
-            self._task.start()
+            self._task = asyncio.to_thread(self.fn, *args, **kwargs)
+            await self._thread
         elif self.task_type == TaskType.PROCESS:
-            self._task = Process(target=self.fn, args=args, kwargs=kwargs)
-            self._task.start()
-        elif self.task_type == TaskType.SYNC:
-            try:
-                self.fn(*args, **kwargs)
-                self.run_hook(self.ON_SYNC_SUCCESS)
-            except Exception as e:
-                self.run_hook(self.ON_SYNC_ERROR)
-                raise e
-
+            self._process = Process(target=self.fn, args=args, kwargs=kwargs)
+            self._process.start()
+        
         # 执行AFTER_START钩子
         self.run_hook(self.AFTER_START)
 
@@ -119,12 +96,13 @@ class TaskItem:
                 if self.task_type == TaskType.COROUTINE:
                     self._task.cancel()
                 elif self.task_type == TaskType.THREAD:
-                    if self._task.is_alive():
-                        self._task.join(timeout=self.timeout)
+                    if self._thread.is_alive():
+                        self._thread.join(timeout=self.timeout)
                 elif self.task_type == TaskType.PROCESS:
-                    if self._task.is_alive():
-                        self._task.terminate()
-                
+                    if self._process.is_alive():
+                        self._process.terminate()
+                        self._process.join(timeout=self.timeout)
+                    
                 # 执行AFTER_STOP和ON_SUCCESS钩子
                 self.run_hook(self.AFTER_STOP)
                 
