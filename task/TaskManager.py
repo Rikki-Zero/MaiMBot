@@ -10,7 +10,7 @@ from .TaskRegister import task_register
 
 class TaskManager:
     main_loop: AbstractEventLoop = None
-    task_queue = asyncio.Queue()
+    task_queue: asyncio.Queue = asyncio.Queue()
     schedule_period: float = 0.1
 
     def set_schedule_period(self, period: float = 0.1):
