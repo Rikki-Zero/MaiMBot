@@ -1,10 +1,9 @@
 import asyncio
-from multiprocessing import Process
 from typing import Callable, Optional
+from functools import wraps
 
 from .TaskManager import task_manager
 from .TaskTypes import TaskType, TaskHookType
-
 
 class TaskItem:
     """
@@ -38,18 +37,46 @@ class TaskItem:
 
     _hooks: dict[TaskHookType, list["TaskItem"]] = {}  # 任务钩子
 
-    def __init__(self, fn: Callable, task_type: TaskType, priority: int = 0, timeout: Optional[float] = None):
+    def __init__(
+        self, fn: Callable, task_type: TaskType, loop: bool = False, priority: int = 0, timeout: Optional[float] = None
+    ):
         """
         初始化任务项
         :param fn: 任务函数，可以是同步或异步
         :param task_type: 任务类型
+        :param loop: 是否循环执行任务
         :param priority: 任务优先级
         :param timeout: 任务超时时间
         """
-        self.fn = fn
+        self.fn: asyncio.coroutines
         self.task_type = task_type
+        self.loop = loop
         self.priority = priority
         self.timeout = timeout
+
+        @wraps(fn)
+        def fn_loop_thread(self, *args, **kwargs):
+            """循环执行任务"""
+            print("fn_loop_thread")
+            while task_manager.get_is_running():
+                fn(*args, **kwargs)
+
+        @wraps(fn)
+        async def fn_loop_coroutine(self, *args, **kwargs):
+            """循环执行任务"""
+            print("ssssssssssssssssssssss")
+            while task_manager.get_is_running():
+                await fn(*args, **kwargs)
+
+        # 如果需要循环执行任务，则将任务函数包装为循环执行任务
+        if self.loop:
+            # 根据任务类型选择循环执行任务的函数
+            if self.task_type == TaskType.COROUTINE:
+                self.fn = fn_loop_coroutine
+            elif self.task_type == TaskType.THREAD:
+                self.fn = asyncio.to_thread(fn_loop_thread, *args, **kwargs)
+        else:
+            self.fn = fn
 
         fn_name = self.fn.__name__
         # 动态添加TaskHookType枚举项作为属性
@@ -59,28 +86,34 @@ class TaskItem:
             setattr(self, hook_type.name, f"{fn_name}_{hook_type.value}")
 
     def run_hook(self, hook_type: TaskHookType, *args, **kwargs) -> None:
-        """执行钩子"""
-        kwargs["task"] = self  # 将当前任务实例作为task参数传入
-        task_manager.run(hook_type, *args, **kwargs)
+        """
+        执行钩子
+
+        param:
+            hook_type: 钩子类型
+            args: 参数
+            kwargs: 关键字参数
+        """
+        task_manager.submit(hook_type, *args, **kwargs)
+
+    async def get_coroutine(self):
+        """获取任务"""
+        if self.task_type == TaskType.COROUTINE:
+            return self.fn
+        elif self.task_type == TaskType.THREAD:
+            return self.fn_loop_thread
 
     async def start(self, *args, **kwargs) -> None:
         """启动任务"""
         # 执行BEFORE_START钩子
-        kwargs["task"] = self  # 将当前任务实例作为task参数传入
-
         self.run_hook(self.BEFORE_START)
 
         # 启动主任务
         # 在 TaskManager 里面的 run 方法中已经处理了参数过滤
         if self.task_type == TaskType.COROUTINE:
             self._task = asyncio.create_task(self.fn(*args, **kwargs))
-            await self._task
         elif self.task_type == TaskType.THREAD:
-            self._task = asyncio.to_thread(self.fn, *args, **kwargs)
-            await self._thread
-        elif self.task_type == TaskType.PROCESS:
-            self._process = Process(target=self.fn, args=args, kwargs=kwargs)
-            self._process.start()
+            self._task = asyncio.create_task()
 
         # 执行AFTER_START钩子
         self.run_hook(self.AFTER_START)
@@ -92,15 +125,7 @@ class TaskItem:
             self.run_hook(self.BEFORE_STOP)
 
             try:
-                if self.task_type == TaskType.COROUTINE:
-                    self._task.cancel()
-                elif self.task_type == TaskType.THREAD:
-                    if self._thread.is_alive():
-                        self._thread.join(timeout=self.timeout)
-                elif self.task_type == TaskType.PROCESS:
-                    if self._process.is_alive():
-                        self._process.terminate()
-                        self._process.join(timeout=self.timeout)
+                self._task.cancel()
 
                 # 执行AFTER_STOP和ON_SUCCESS钩子
                 self.run_hook(self.AFTER_STOP)

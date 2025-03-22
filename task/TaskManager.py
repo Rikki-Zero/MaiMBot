@@ -13,6 +13,11 @@ class TaskManager:
     task_queue: asyncio.Queue = asyncio.Queue()
     schedule_period: float = 0.1
 
+    is_running: asyncio.Event = asyncio.Event()
+
+    def __init__(self):
+        self.set_is_running(True)
+
     def set_schedule_period(self, period: float = 0.1):
         """设置调度周期"""
         self.schedule_period = period
@@ -103,6 +108,7 @@ class TaskManager:
         except KeyboardInterrupt:
             # 执行键盘中断任务
             if KeyboardInterrupt_fn is not None:
+                self.set_is_running(False)
                 self.fn_filter(KeyboardInterrupt_fn, self.main_loop)
         finally:
             # 关闭所有协程任务
@@ -116,6 +122,17 @@ class TaskManager:
     def submit(self, on: Union[TaskStage, str], *args, **kwargs):
         """将任务放入队列"""
         self.task_queue.put_nowait((on, args, kwargs))
+
+    def set_is_running(self, is_running: bool = False):
+        """设置是否正在运行"""
+        if is_running:
+            self.is_running.set()
+        else:
+            self.is_running.clear()
+
+    def get_is_running(self) -> bool:
+        """获取是否正在运行"""
+        return self.is_running.is_set()
 
 
 task_manager = TaskManager()

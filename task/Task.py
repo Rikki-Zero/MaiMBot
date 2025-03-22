@@ -15,11 +15,13 @@ class Task:
         self,
         on: Union[TaskStage, TaskHookType],
         type: Optional[TaskType] = None,
+        loop: bool = False,
         timeout: Optional[float] = 0.0,
         priority: int = 0,
     ):
         self.on = on
         self.type = type
+        self.loop = loop
         self.timeout = timeout
         self.priority = priority
 
@@ -37,7 +39,9 @@ class Task:
             self.type = TaskType.COROUTINE if iscoroutinefunction(fn) else TaskType.THREAD
 
         # 创建TaskItem
-        task_item = TaskItem(fn=wrapper, task_type=self.type, priority=self.priority)
+        task_item = TaskItem(
+            fn=wrapper, task_type=self.type, loop=self.loop, priority=self.priority, timeout=self.timeout
+        )
 
         # 注册任务
         if isinstance(self.on, TaskStage):
