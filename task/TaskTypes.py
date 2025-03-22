@@ -4,6 +4,12 @@ from enum import Enum
 class TaskStage(Enum):
     """
     任务阶段枚举类，定义不同的任务处理阶段
+
+    Types:
+        ON_STARTUP: 程序启动阶段
+        ON_CONNECT: 连接建立阶段
+        ON_MESSAGE: 消息接收阶段
+        ON_NOTICE: 通知处理阶段
     """
 
     ON_STARTUP = "on_startup"  # 程序启动阶段
@@ -15,6 +21,16 @@ class TaskStage(Enum):
 class TaskHookType(Enum):
     """
     任务钩子类型枚举类，定义不同的任务钩子类型
+
+    Types:
+        BEFORE_START: 任务开始前
+        AFTER_START: 任务结束后
+        BEFORE_STOP: 任务停止前
+        AFTER_STOP: 任务停止后
+        ON_SYNC_SUCCESS: 任务成功后
+        ON_SYNC_ERROR: 任务失败后
+        ON_CANCEL_ERROR: 任务取消失败后
+        ON_TIMEOUT: 任务超时后
     """
 
     BEFORE_START = "before_start"  # 任务开始前
@@ -32,12 +48,24 @@ class TaskHookType(Enum):
 
 class TaskType(Enum):
     """任务类型枚举类，定义不同的任务执行方式
-    SYNC: 同步任务，在调度子线程中需要执行完成才会继续执行链中后方的任务
-    COROUTINE、PROCESS、THREAD: 在调度子线程中被读到时会立即创建相关上下文
-    不发生阻塞，可以立即执行链中后方的任务
+
+    Types:
+        COROUTINE: 协程任务
+        THREAD: 线程任务
     """
 
-    SYNC = "sync"  # 同步任务，要确保程序短小，不然容易导致被调度器子线程卡住
     COROUTINE = "coroutine"  # 协程任务
-    PROCESS = "process"  # 进程任务
-    THREAD = "thread"  # 线程任务
+    THREAD = "THREAD"  # 线程任务
+
+
+class ScheduleType(Enum):
+    """
+    调度类型枚举类，定义不同的调度类型
+
+    Types:
+        EVENT_DRIVEN: 根据事件循环调度
+        PACKET_DRIVEN: 根据数据包到达触发调度
+    """
+
+    EVENT_DRIVEN = "event_driven"  # 事件驱动调度
+    PACKET_DRIVEN = "packet_driven"  # 数据包驱动调度
