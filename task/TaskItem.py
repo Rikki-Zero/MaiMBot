@@ -1,5 +1,4 @@
 import asyncio
-from threading import Thread
 from multiprocessing import Process
 from typing import Callable, Optional
 
@@ -58,19 +57,19 @@ class TaskItem:
             # 更新实例的具体hook chain名称
             # 例如：on_startup.AFTER_START = "on_startup_after_start"
             setattr(self, hook_type.name, f"{fn_name}_{hook_type.value}")
-    
+
     def run_hook(self, hook_type: TaskHookType, *args, **kwargs) -> None:
         """执行钩子"""
-        kwargs['task'] = self  # 将当前任务实例作为task参数传入
+        kwargs["task"] = self  # 将当前任务实例作为task参数传入
         task_manager.run(hook_type, *args, **kwargs)
 
     async def start(self, *args, **kwargs) -> None:
         """启动任务"""
         # 执行BEFORE_START钩子
-        kwargs['task'] = self  # 将当前任务实例作为task参数传入
+        kwargs["task"] = self  # 将当前任务实例作为task参数传入
 
         self.run_hook(self.BEFORE_START)
-        
+
         # 启动主任务
         # 在 TaskManager 里面的 run 方法中已经处理了参数过滤
         if self.task_type == TaskType.COROUTINE:
@@ -82,7 +81,7 @@ class TaskItem:
         elif self.task_type == TaskType.PROCESS:
             self._process = Process(target=self.fn, args=args, kwargs=kwargs)
             self._process.start()
-        
+
         # 执行AFTER_START钩子
         self.run_hook(self.AFTER_START)
 
@@ -91,7 +90,7 @@ class TaskItem:
         if self._task:
             # 执行BEFORE_STOP钩子
             self.run_hook(self.BEFORE_STOP)
-            
+
             try:
                 if self.task_type == TaskType.COROUTINE:
                     self._task.cancel()
@@ -102,15 +101,15 @@ class TaskItem:
                     if self._process.is_alive():
                         self._process.terminate()
                         self._process.join(timeout=self.timeout)
-                    
+
                 # 执行AFTER_STOP和ON_SUCCESS钩子
                 self.run_hook(self.AFTER_STOP)
-                
+
             except Exception as e:
                 # 执行ON_ERROR钩子
                 self.run_hook(self.ON_CANCEL_ERROR)
                 raise e
-            
+
             # 如果设置了超时且触发超时
             if self.timeout and self._task.is_alive():
                 self.run_hook(self.ON_TIMEOUT)

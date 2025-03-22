@@ -3,7 +3,6 @@ from loguru import logger
 from asyncio import AbstractEventLoop
 from typing import Union, Callable
 from inspect import signature
-from threading import Thread
 
 from .TaskTypes import TaskStage
 from .TaskRegister import task_register
