@@ -4,25 +4,21 @@ import os
 
 from loguru import logger
 from nonebot import get_driver, on_message, require
-from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageSegment,MessageEvent
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.typing import T_State
 
 from ..moods.moods import MoodManager  # 导入情绪管理器
 from ..schedule.schedule_generator import bot_schedule
-from ..utils.statistic import LLMStatistics
+from ..utils.statistic import llm_stats
 from .bot import chat_bot
 from .config import global_config
 from .emoji_manager import emoji_manager
 from .relationship_manager import relationship_manager
 from .willing_manager import willing_manager
 from .chat_stream import chat_manager
-from ..memory_system.memory import hippocampus, memory_graph
-from .bot import ChatBot
+from ..memory_system.memory import hippocampus
 from .message_sender import message_manager, message_sender
 
-
-# 创建LLM统计实例
-llm_stats = LLMStatistics("llm_statistics.txt")
 
 # 添加标志变量
 _message_manager_started = False
@@ -35,8 +31,7 @@ config = driver.config
 emoji_manager.initialize()
 
 logger.debug(f"正在唤醒{global_config.BOT_NICKNAME}......")
-# 创建机器人实例
-chat_bot = ChatBot()
+
 # 注册消息处理器
 msg_in = on_message(priority=5)
 # 创建定时任务
@@ -91,7 +86,7 @@ async def _(bot: Bot):
 
 
 @msg_in.handle()
-async def _(bot: Bot, event: MessageEvent, state: T_State):
+async def _(bot: Bot, event: MessageEvent):
     await chat_bot.handle_message(event, bot)
 
 

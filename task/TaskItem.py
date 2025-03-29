@@ -1,9 +1,9 @@
 import asyncio
 from typing import Callable, Optional
-from functools import wraps
 
 from .TaskManager import task_manager
 from .TaskTypes import TaskType, TaskHookType
+
 
 class TaskItem:
     """
@@ -14,17 +14,11 @@ class TaskItem:
     3. 支持任务钩子的管理
     """
 
-    BEFORE_START = "before_start"  # 任务开始前
-    AFTER_START = "after_start"  # 任务结束后
+    BEFORE_START = "before_start"  # 任务启动前
+    AFTER_START = "after_start"  # 任务启动后
+    FINISHED = "finished" # 任务运行结束后
     BEFORE_STOP = "before_stop"  # 任务停止前
     AFTER_STOP = "after_stop"  # 任务停止后
-
-    ON_SYNC_SUCCESS = "on_sync_success"  # 任务成功后
-    ON_SYNC_ERROR = "on_sync_error"  # 任务失败后
-
-    ON_CANCEL_ERROR = "on_cancel_error"  # 任务取消失败后
-
-    ON_TIMEOUT = "on_timeout"  # 任务超时后
 
     # 类属性
     fn: Optional[Callable] = None  # 任务函数，可以是同步或异步
@@ -37,46 +31,21 @@ class TaskItem:
 
     _hooks: dict[TaskHookType, list["TaskItem"]] = {}  # 任务钩子
 
-    def __init__(
-        self, fn: Callable, task_type: TaskType, loop: bool = False, priority: int = 0, timeout: Optional[float] = None
-    ):
+    def __init__(self, fn: Callable, task_type: TaskType, priority: int = 0, timeout: Optional[float] = None):
         """
         初始化任务项
-        :param fn: 任务函数，可以是同步或异步
-        :param task_type: 任务类型
-        :param loop: 是否循环执行任务
-        :param priority: 任务优先级
-        :param timeout: 任务超时时间
+        param:
+            fn: 任务函数，可以是同步或异步
+            task_type: 任务类型
+            priority: 任务优先级
+            timeout: 任务超时时间
         """
-        self.fn: asyncio.coroutines
+        self.fn: Callable
         self.task_type = task_type
-        self.loop = loop
         self.priority = priority
         self.timeout = timeout
 
-        @wraps(fn)
-        def fn_loop_thread(self, *args, **kwargs):
-            """循环执行任务"""
-            print("fn_loop_thread")
-            while task_manager.get_is_running():
-                fn(*args, **kwargs)
-
-        @wraps(fn)
-        async def fn_loop_coroutine(self, *args, **kwargs):
-            """循环执行任务"""
-            print("ssssssssssssssssssssss")
-            while task_manager.get_is_running():
-                await fn(*args, **kwargs)
-
-        # 如果需要循环执行任务，则将任务函数包装为循环执行任务
-        if self.loop:
-            # 根据任务类型选择循环执行任务的函数
-            if self.task_type == TaskType.COROUTINE:
-                self.fn = fn_loop_coroutine
-            elif self.task_type == TaskType.THREAD:
-                self.fn = asyncio.to_thread(fn_loop_thread, *args, **kwargs)
-        else:
-            self.fn = fn
+        self.fn = fn
 
         fn_name = self.fn.__name__
         # 动态添加TaskHookType枚举项作为属性
@@ -98,10 +67,7 @@ class TaskItem:
 
     async def get_coroutine(self):
         """获取任务"""
-        if self.task_type == TaskType.COROUTINE:
-            return self.fn
-        elif self.task_type == TaskType.THREAD:
-            return self.fn_loop_thread
+        return self.fn
 
     async def start(self, *args, **kwargs) -> None:
         """启动任务"""
@@ -109,14 +75,13 @@ class TaskItem:
         self.run_hook(self.BEFORE_START)
 
         # 启动主任务
-        # 在 TaskManager 里面的 run 方法中已经处理了参数过滤
-        if self.task_type == TaskType.COROUTINE:
-            self._task = asyncio.create_task(self.fn(*args, **kwargs))
-        elif self.task_type == TaskType.THREAD:
-            self._task = asyncio.create_task()
+        self._task = asyncio.create_task(self.fn(*args, **kwargs))
 
         # 执行AFTER_START钩子
         self.run_hook(self.AFTER_START)
+
+    async def wait():
+        """等待执行"""
 
     def stop(self) -> None:
         """停止任务"""

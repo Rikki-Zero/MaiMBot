@@ -1,32 +1,43 @@
 if __name__ == "__main__":
     import sys
     import os
+
     sys.path.append(os.path.dirname(os.path.dirname(__file__)))
     print(os.path.dirname(os.path.dirname(__file__)))
 
 import asyncio
 import time
 
-from task import Task,TaskStage,TaskType
+from task import Task, TaskStage, TaskType
 from task.TaskManager import task_manager
 
-@Task(on=TaskStage.ON_STARTUP,type=TaskType.PROCESS,priority=1)
+
+@Task(on=TaskStage.ON_STARTUP, type=TaskType.THREAD, priority=1)
 def on_startup():
     print("on_startup")
     while True:
         print("on_startup_loop")
         time.sleep(1)
 
-print("aft",on_startup.AFTER_START)
 
-@Task(on=on_startup.AFTER_START,type=TaskType.COROUTINE)
+print("aft", on_startup.AFTER_START)
+
+
+@Task(on=on_startup.AFTER_START, type=TaskType.COROUTINE)
 async def on_startup_BEFORE_START():
     print("on_startup_BEFORE_START")
     await asyncio.sleep(5)
     print("on_startup_BEFORE_START_5")
 
-print("task_manager run")
-task_manager.run(TaskStage.ON_STARTUP)
+
+if __name__ == "__main__":
+    def keyboard(task):
+        print("键盘中断")
+
+    def final(task):
+        print("收尾")
+
+    task_manager.run(KeyboardInterrupt_fn=keyboard, finally_fn=final)
 
 # import asyncio
 # import time

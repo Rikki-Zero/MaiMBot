@@ -7,7 +7,6 @@ from loguru import logger
 
 from ...common.database import db
 
-
 class LLMStatistics:
     def __init__(self, output_file: str = "llm_statistics.txt"):
         """初始化LLM统计类
@@ -161,3 +160,5 @@ class LLMStatistics:
                 if not self.running:
                     break
                 time.sleep(1)
+
+llm_stats = LLMStatistics("llm_statistics.txt")

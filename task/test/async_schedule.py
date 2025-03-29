@@ -1,6 +1,5 @@
 if __name__ == "__main__":
     import sys
-    import os
 
     sys.path.append("/home/rikki/WorkSpace/Dev/MaiMBot/")
 
@@ -11,10 +10,11 @@ from task import Task, TaskStage
 from task.TaskManager import task_manager
 
 
-@Task(on=TaskStage.ON_STARTUP,loop=True, priority=1)
+@Task(on=TaskStage.ON_STARTUP, priority=1)
 def on_startup():
-    print("on_startup_loop")
-    time.sleep(10)
+    while True: 
+        print("on_startup_loop")
+        time.sleep(1)
 
 @Task(on=on_startup.BEFORE_START)
 def before_startup():
